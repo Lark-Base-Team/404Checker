@@ -9,8 +9,10 @@ from exceptions import FieldError, PersonalBaseTokenError
 
 
 def test404(url):
-  code = re.get(url).status_code
-  return code == 200
+  if re.get(url).status_code == 404:
+    return False
+  return True
+
 
 
 def check_job(baseId, tableId, personalBaseToken, fieldToCheck):
@@ -51,14 +53,23 @@ def check_job(baseId, tableId, personalBaseToken, fieldToCheck):
     update_data = []
     for record in records['items']:
       try:
+        link = record['fields'][target_field]['link']
+      except Exception as e:
+        raise FieldError("待检查列选择错误，请选择超链接类型的列")
+      try:
         temp = AppTableRecord().builder().record_id(
           record['record_id']).fields({
-            "链接可用性":
-            "可用" if test404(record['fields'][target_field]['link']) else "不可用"
-          }).build()
-        update_data.append(temp)
-      except:
-        raise FieldError("待检查列选择错误，请选择超链接类型的列")
+          "链接可用性":
+            "可用" if test404(link) else "不可用"
+        }).build()
+      except Exception as e:
+        temp = AppTableRecord().builder().record_id(
+          record['record_id']).fields({
+          "链接可用性":
+            "不可用"
+        }).build()
+      update_data.append(temp)
+
     batch_update_request = BatchUpdateAppTableRecordRequest.builder().table_id(
       tableId).request_body(
         BatchUpdateAppTableRecordRequestBody().builder().records(
